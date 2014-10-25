@@ -1,0 +1,1246 @@
+% Default course lecture note template by asp 
+\documentclass[letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage[top=3cm, bottom=3cm, left=3.85cm, right=3.85cm]{geometry}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{amsmath,amssymb,wasysym,amsthm}
+\usepackage{graphicx}
+\usepackage{mathptmx}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usepackage{hyperref}
+\usepackage{gitinfo}
+\usepackage{xspace}
+\usepackage{lineno}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\usepackage{verbatimbox}
+\usepackage{multirow}
+\usepackage{scalerel}
+\usepackage[tablename=Figure]{caption}
+\usepackage[title]{appendix}
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+\title{Enabling~Blockchain~Innovations~with~Pegged~Sidechains}
+\author{
+  Adam Back,
+  Matt Corallo,
+  Luke Dashjr,\\
+  Mark Friedenbach,
+  Gregory Maxwell,\\
+  Andrew Miller,
+  Andrew Poelstra,\\
+  Jorge Tim\'on,
+  and
+  Pieter Wuille\footnote{
+    \texttt{adam@cypherspace.org},
+    \texttt{mattc@bluematt.me},
+    \texttt{luke@dashjr.org},
+    \texttt{mark@friedenbach.org},\newline
+    \texttt{greg@xiph.org},
+    \texttt{amiller@cs.umd.edu},
+    \texttt{apoelstra@wpsoftware.net},
+    \texttt{jtimon@jtimon.cc},\newline
+    \texttt{pieter.wuille@gmail.com}}
+\footnote{This work was partially supported by Blockstream, a company founded by several of the authors. Many of the concepts discussed in this paper were developed before
+Blockstream existed; sidechain technology is an open proposal by the authors
+themselves.}
+}
+\date{\gitAuthorDate{} (commit \texttt{\gitAbbrevHash)}}
+
+
+% my usual newcommands
+\newcommand{\pk}{\textnormal{\texttt{pk}}}
+\newcommand{\sk}{\textnormal{\texttt{sk}}}
+
+% terms that might change
+\newcommand{\mainchain}{parent chain\xspace}
+\newcommand{\mainchains}{parent chains\xspace}
+\newcommand{\maincoin}{parent chain coin\xspace}
+\newcommand{\maincoins}{parent chain coins\xspace}
+\newcommand{\maintx}{transaction on the parent chain\xspace}
+\newcommand{\maintxes}{transactions on the parent chain\xspace}
+\newcommand{\sidechain}{sidechain\xspace}
+\newcommand{\sidechains}{sidechains\xspace}
+\newcommand{\sidecoins}{sidechain coins\xspace}
+
+\newcommand{\peggedsidechain}{pegged sidechain\xspace}
+\newcommand{\peggedsidechains}{pegged sidechains\xspace}
+\newcommand{\altcoin}{altcoin\xspace}
+\newcommand{\altcoins}{altcoins\xspace}
+\newcommand{\altchain}{altchain\xspace}
+\newcommand{\altchains}{altchains\xspace}
+
+\newcommand{\hashsig}{DMMS\xspace}
+\newcommand{\hashsigs}{DMMSes\xspace}
+\newcommand{\consensus}{consensus system\xspace}
+
+\newcommand{\nalts}{hundreds\xspace}
+
+\newcommand{\onewp}{one-way peg\xspace}
+\newcommand{\pegtarget}{target\xspace}
+\newcommand{\onewpped}{one-way pegged\xspace}
+\newcommand{\twowp}{two-way peg\xspace}
+\newcommand{\twowpped}{two-way pegged\xspace}
+
+\newcommand{\oracle}{functionary\xspace}
+\newcommand{\oracles}{functionaries\xspace}
+
+%diagram
+\newcommand{\extline}{$\scriptsize$-$\normalsize$\!}
+\newcommand{\lextlineend}{$\scriptsize$\lhd\!$\normalsize$}
+\newcommand{\rextlineend}{$\scriptsize\rule{.1ex}{0ex}$\rhd$\normalsize$}
+
+\newcounter{index}
+\newcommand\extlines[1]{%
+  \setcounter{index}{0}%
+  \whiledo {\value{index}< #1}
+  {\addtocounter{index}{1}\extline}
+}
+
+\newcommand\rextlinearrow[2]{$
+  \setbox0\hbox{$\extlines{#2}\rextlineend$}%
+  \tiny$%
+  \!\!\!\!\begin{array}{c}%
+  \textnormal{#1}\\%
+  \usebox0%
+  \end{array}%
+  $\normalsize$\!\!%
+}
+
+\newcommand\lextlinearrow[2]{$
+  \setbox0\hbox{$\lextlineend\extlines{#2}$}%
+  \tiny%
+  $%
+  \!\!\!\!\begin{array}{c}%
+  \textnormal{#1}\\%
+  \usebox0%
+  \end{array}%
+  $\normalsize$\!\!%
+}
+
+\renewcommand\lextlinearrow[2]{%
+  \setbox0\hbox{$\lextlineend\extlines{#2}$}%
+  \shortstack{$\textnormal{#1}$\\\addvbuffer[-.7ex -.3ex]{\usebox0}}%
+}
+
+\renewcommand\rextlinearrow[2]{%
+  \setbox0\hbox{$\extlines{#2}\rextlineend$}%
+  \shortstack{$\textnormal{#1}$\\\addvbuffer[-.7ex -.3ex]{\usebox0}}%
+}
+
+
+\begin{document}
+
+\maketitle
+\hyphenpenalty=15000
+\pretolerance=10000
+\interfootnotelinepenalty=10000
+
+\begin{abstract}
+Since the introduction of Bitcoin\cite{nakamoto2009} in 2009, and the multiple computer
+science and electronic cash innovations it brought, there has been
+great interest in the potential of decentralised cryptocurrencies. At the
+same time, implementation changes to the consensus-critical parts of Bitcoin
+must necessarily be handled very conservatively. As a result, Bitcoin has greater
+difficulty than other Internet protocols in adapting to new demands and accommodating new innovation.
+
+We propose a new technology, \emph{\peggedsidechains}, which enables bitcoins and
+other ledger assets to be transferred between multiple blockchains. This gives
+users access to new and innovative cryptocurrency systems using the assets
+they already own. By reusing Bitcoin's currency, these systems can more easily
+interoperate with each other and with Bitcoin, avoiding the liquidity shortages
+and market fluctuations associated with new currencies. Since \sidechains
+are separate systems, technical and economic innovation is not hindered. Despite
+bidirectional transferability between Bitcoin and \peggedsidechains, they are
+isolated: in the case of a cryptographic break (or malicious design) in a sidechain,
+the damage is entirely confined to the \sidechain itself.
+
+This paper lays out \peggedsidechains, their implementation requirements, and
+the work needed to fully benefit from the future of interconnected blockchains.
+\end{abstract}
+
+\clearpage
+\tableofcontents
+
+~\\~\\~\\~\\~\\~\\~\\
+\paragraph{License.} This work is released into the public domain.
+\clearpage
+\modulolinenumbers[10]
+\linenumbers
+
+\section{Introduction}
+
+
+David Chaum introduced digital cash as a research topic in 1983, in a setting with
+a central server that is trusted to prevent \emph{double-spending}\cite{chaum1983}.
+To mitigate the privacy risk to individuals from this central trusted party, and
+to enforce fungibility, Chaum introduced the  \emph{blind signature}, which he
+used to provide a cryptographic means to prevent linking of the central server's
+signatures (which represent coins), while still allowing the central server to
+perform double-spend prevention. The requirement for a central server became
+the Achilles' heel of digital cash\cite{grigg1999}. While it is possible to
+distribute this single point of failure by replacing the central server's
+signature with a \emph{threshold signature} of several signers, it is important
+for auditability that the signers be distinct and identifiable. This still
+leaves the system vulnerable to failure, since each signer can fail, or be
+made to fail, one by one.
+
+In January of 2009, Satoshi Nakamoto released the first widely used implementation
+of peer-to-peer trustless electronic cash\cite{nakamoto2009}, replacing the central
+server's signature with a consensus mechanism based on proof of work\cite{back2002}, with economic
+incentives to act cooperatively. Bitcoin tracks payments by aggregating them into
+\emph{blocks}, each with an associated \emph{blockheader}, which cryptographically
+commits\footnote{A \emph{commitment} is a cryptographic object which is computed
+from some secret data, but does not reveal it, such that the data cannot be changed
+after the fact. An example of a commitment is a \emph{hash}: given data $x$, one can
+publish $H(x)$ where $H$ is a hash function, and only later reveal $x$. Verifiers
+can then confirm that the revealed value is the same as the original value by
+computing $H(x)$ themselves.} to: the contents of the block, a timestamp, and
+the previous blockheader. The commitments to previous headers form a
+\emph{blockchain}, or \emph{chain}, which provides a well-defined ordering for transactions.
+
+We observe that Bitcoin's blockheaders can be regarded as an example of a \emph{dynamic-membership
+multi-party signature} (or \emph{\hashsig}), which we consider to be of independent
+interest as a new type of group signature. Bitcoin provides the first embodiment of
+such a  signature, although this has not appeared in the literature until now.  A
+\hashsig is a digital  signature formed by a set of signers which has no fixed size.
+Bitcoin's blockheaders are \hashsigs because their proof-of-work has the property
+that anyone can contribute with no enrolment process. Further, contribution is
+weighted by computational power rather than one  threshold signature contribution
+per party,  which allows anonymous membership without risk of a \emph{Sybil attack}
+(when one party joins many times and has disproportionate input into the signature).
+For this reason, the \hashsig has also been described as a solution to the Byzantine
+Generals Problem\cite{aspnes+jackson+krishnamurthy2005}.
+
+Because the blocks are chained together, Bitcoin's \hashsig is cumulative: any
+chain (or chain fragment) of blockheaders is also a \hashsig on its first block,
+with computational strength equal to the sum of the strengths of the
+\hashsigs it is composed of. Nakamoto's key innovation is the aforementioned use
+of a \hashsig as a signature of \emph{computational power} rather than a
+signature of \emph{knowledge}. Because signers prove computational work, rather
+than proving secret knowledge as is typical for digital signatures, we refer to them
+as \emph{miners}. To achieve stable consensus on the blockchain history, economic
+incentives are provided where miners are rewarded with fees and subsidies in
+the form of coins that are valuable only if the miners form a shared valid
+history, incentivising them to behave honestly. Because the strength of Bitcoin's
+cumulative \hashsig is directly proportional to the total computational power
+contributed by all miners\cite{poelstra2014-3}, it
+becomes infeasible for a computational minority to change the
+chain. If they try to revise the \hashsig-secured ledger, they will fall
+behind and be continually unable to catch up to the moving target of the
+progressing consensus blockchain.
+
+Because the miners do not form an identifiable set, they cannot have discretion over the
+rules determining transaction validity. Therefore, Bitcoin's rules must be determined
+at the start of its history, and new valid transaction forms cannot be added except with the
+agreement of every network
+participant. Even with such an agreement, changes are difficult to deploy because they
+require all participants to implement and execute the new rules in exactly the same way,
+including edge cases and unexpected interactions with other features.
+
+For this reason, Bitcoin's objective is relatively simple: it is a blockchain
+supporting the transfer of a single native digital asset, which is not redeemable
+for anything else. This allowed
+many simplifications in the implementation, but real-world demands are now challenging
+those simplifications. In particular, current innovation is focused
+around the following areas:
+\begin{enumerate}
+\item There are trade-offs between scalability and decentralisation. For example,
+a larger block size would allow the network to support a higher transaction rate, at
+the cost of placing more work on validators --- a centralisation risk.
+
+Similarly, there are trade-offs between security and cost. Bitcoin
+stores every transaction in its history with the same level of irreversibility.
+This is expensive to maintain and may not be appropriate for low value
+or low-risk transactions (\emph{e.g.} where all parties already have shared
+legal infrastructure in place to handle fraud).
+
+These trade-offs should be made for each
+transaction, as transactions vary widely in value and risk profile. However, Bitcoin by
+construction supports only a ``one size fits all'' solution.
+\item There are many more trade-offs for blockchain features. For example, Bitcoin's
+script could be more powerful to enable succinct and useful contracts, or could be
+made less powerful to assist in auditability.
+
+\item There are assets besides currencies that may be traded on
+blockchains, such as IOUs and other contracts, as well as smart property \cite{szabo1997}.
+
+\item There is a risk of monoculture: Bitcoin is composed of many cryptographic
+components, any one of whose failures could cause a total loss of value. If
+possible, it would be prudent not to secure every bitcoin with the same set
+of algorithms.
+
+\item New technology might enable new features not imagined when Bitcoin was
+first developed. For example, privacy and censorship-resistance could be improved by
+use of cryptographic accumulators\cite{mouton2013}, ring signatures\cite{vansaberhagen2013},
+or Chaumian blinding\cite{chaum1983}.
+\item Even if there is a pressing need to do so, there is no safe upgrade path for
+Bitcoin, in the sense that all participants must act in concert for any change
+to be effected. There is consensus amongst Bitcoin developers that changes to Bitcoin
+must be done slowly, cautiously, and only with clear assent from the community.
+
+The fact that functionality must be broadly acceptable to gain adoption limits participants'
+personal freedom and autonomy over their own coins. Small groups are unable to implement features,
+such as special-purpose script extensions\cite{jl20122013}, because they lack
+broad consensus.
+
+\end{enumerate}
+
+An early solution to these problems with Bitcoin has been the development of alternate
+blockchains, or \emph{\altchains}, which share the Bitcoin codebase
+except for modifications to address the above concerns. However,
+implementing technical changes through the creation of independent but essentially
+similar systems is problematic.
+
+One problem is infrastructure fragmentation:
+because each \altchain uses its own technology stack, effort is frequently duplicated and lost.
+Because of this, and because implementers of \altchains may fail to clear the
+very high barrier of security-specific domain knowledge in Bitcoin\cite{poelstra2014-1},
+security problems are often duplicated across \altchains while their fixes are
+not. Substantial resources must be spent finding or building the expertise to
+review novel distributed cryptosystems, but when they are not, security weaknesses
+are often invisible until they are exploited. As a result, we have seen a volatile, unnavigable environment develop, where the most visible projects
+may be the least technically sound.
+As an analogy, imagine an Internet where every website used its own TCP
+implementation, advertising its customised checksum and packet-splicing
+algorithms to end users. This would not be a viable environment, and neither is
+the current environment of \altchains.
+
+A second problem is that such \altchains, like Bitcoin, typically have their own native cryptocurrency, or \emph{\altcoin}, with a floating price. To access the \altchain, users must use a market to obtain this currency, exposing them to the
+high risk and volatility associated with new currencies.
+Further, the requirement to independently solve the problems of
+initial distribution and
+valuation, while at the same time contending with adverse network effects and
+a crowded market, discourages technical innovation while at the same time encouraging market
+games.
+This is dangerous not only to those directly participating in these systems,
+but also to the cryptocurrency industry as a whole. If the field is seen as
+too risky by the public, adoption may be hampered, or 
+cryptocurrencies might be deserted entirely (voluntarily or legislatively).
+
+It appears that we desire a world in which interoperable \altchains can be easily
+created and used, but without unnecessarily fragmenting markets and development.
+In this paper, we argue that it is possible to simultaneously achieve these
+seemingly contradictory goals.
+The core observation is that ``Bitcoin'' the blockchain is conceptually
+independent from ``bitcoin'' the asset: if we had technology to support
+the movement of assets between blockchains, new
+systems could be developed which users could adopt by simply reusing the
+existing bitcoin currency\footnote{We use bitcoin as an example because its strong network effects
+make it likely that users will prefer it over other, newer assets. However, any \altcoin can be
+adapted to be usable with \sidechains.}.
+
+We refer to such interoperable blockchains as \emph{\peggedsidechains}. We
+will give a precise definition in Section \ref{def}, but for now we
+list the following desired properties for \peggedsidechains:
+\begin{enumerate}
+\item Assets which are moved between sidechains should be
+able to be moved back by whomever their current holder is, and nobody else (including
+previous holders).
+
+\item Assets should be moved without counterparty risk; that is, there should be no ability for a
+dishonest party to prevent the transfer occurring.
+
+\item Transfers should be atomic, \emph{i.e.} happen entirely or not at
+all. There should not be failure modes that result in loss or allow fraudulent
+creation of assets.
+
+\item Sidechains should be \emph{firewalled}: a bug in one \sidechain enabling
+creation (or theft) of assets in that chain should not result in creation or theft of assets
+on any other chain.
+\item Blockchain reorganisations\footnote{A \emph{reorganisation}, or \emph{reorg},
+occurs locally in clients when a previously accepted chain is overtaken by a competitor
+chain with more proof of work, causing any blocks on the losing side of the fork to be
+removed from consensus history.} should be handled cleanly, even during transfers;
+any disruption should be localised to the sidechain on which it occurs. In general,
+\sidechains should ideally be \emph{fully independent}, with
+users providing any necessary data from other chains. Validators of a \sidechain should only be required to track another chain if that is an explicit consensus rule of the \sidechain itself.
+
+\item Users should not be required to track \sidechains that they are not
+actively using.
+\end{enumerate}
+
+An early solution was to ``transfer'' coins by destroying bitcoins in a publicly
+recognisable way\footnote{This is also known as a \emph{one-way peg}, to contrast
+with \emph{two-way peg}, which we introduce later on.}, which would be detected by a new blockchain to allow creation
+of new coins\cite{back2013-1}. This is a partial solution to the problems listed
+above, but since it allows only unidirectional transfers between chains, it is not sufficient
+for our purposes.
+
+Our proposed solution is to transfer assets by providing proofs of possession in the
+transferring transactions themselves, avoiding the need for nodes to
+track the sending chain. On a high level, when moving assets from one
+blockchain to another, we create a transaction on the first blockchain
+locking the assets, then create a transaction on the second blockchain
+whose inputs contain a cryptographic proof that the lock was done correctly.
+These inputs are tagged with an asset type, \emph{e.g.} the genesis hash of
+its originating blockchain.
+
+We refer to the first blockchain as the \emph{\mainchain}, and the second simply as
+the \emph{\sidechain}. In some models, both chains are treated symmetrically,
+so this terminology should be considered relative. Conceptually, we would like to
+transfer an asset from the (original) \mainchain to a \sidechain, possibly onward to another
+\sidechain, and eventually back to the \mainchain, preserving the original asset.
+Generally we can think of the \mainchain as being Bitcoin and the \sidechain
+as one of many other blockchains. Of course, \sidecoins
+could be transferred between \sidechains, not just to and from Bitcoin;
+however, since any coin originally moved from Bitcoin could be moved back,
+it would nonetheless remain a bitcoin.
+
+This lets us solve the problem of fragmentation described in the previous section, which
+is good news for cryptocurrency developers who want to focus solely
+on technical innovation.
+
+Furthermore, because \sidechains transfer existing assets from the \mainchain rather than creating new ones, \sidechains cannot cause unauthorised creation
+of coins, relying instead on the \mainchain to maintain the security and scarcity of its
+assets\footnote{Of course, \sidechains are able to support their own assets, which they
+would be responsible for maintaining the scarcity of. We mean to emphasise that they can only affect the scarcity of themselves and their child chains.}.
+
+Further still, participants do not need to be as concerned that their holdings
+are locked in a single experimental \altchain, since \sidecoins can be
+redeemed for an equal number of \mainchain coins. This provides an exit
+strategy, reducing harm from unmaintained software.
+
+On the other hand, because \sidechains are still blockchains independent of
+Bitcoin, they are free to experiment with new transaction designs, trust
+models, economic models, asset issuance semantics, or cryptographic features.
+We will explore many of the possibilities for \sidechains further in Section
+\ref{app}.
+
+An additional benefit to this infrastructure is that making changes to Bitcoin itself
+becomes much less pressing: rather than orchestrating a fork which all parties
+need to agree on and implement in tandem, a new ``changed Bitcoin''
+could be created as a \sidechain. If, in the medium term, there were wide agreement
+that the new system was an improvement, it may end up seeing significantly more use than Bitcoin. As there are no
+changes to \mainchain consensus rules, everyone can switch in their own time without
+any of the risks associated with consensus failure. Then, in the longer term,
+the success of the changes in the \sidechain would provide the needed confidence
+to change the \mainchain, if and when it is deemed necessary to do so.
+
+\section{Design rationale}
+
+\emph{Trustlessness} is the property of not relying on
+trusting external parties for correct operation, typically by enabling all
+parties to verify on their own that information is correct. For example,
+in cryptographic signature systems trustlessness is an implicit requirement
+(signature systems where an attacker can forge signatures would be
+considered utterly broken). While this is not typical for distributed
+systems, Bitcoin does provide trustless operation for most parts of its system\footnote{This
+is true for almost all aspects of Bitcoin: a user running a full node will
+never accept a transaction that is directly or indirectly the result of
+counterfeiting or spending without proving possession. However, trustless
+operation is not possible for preventing double spending, as there is no
+way to distinguish between two conflicting but otherwise valid transactions.
+Instead of relying on a centralised trusted party or parties to take on
+this arbitration function like Bitcoin's predecessors, Bitcoin reduces
+the trust required --- but does not remove it --- by using a \hashsig
+and economic incentives.}.
+
+A major design goal of \peggedsidechains is to minimise additional trust over Bitcoin's model. The hard part is securing transfers of coins between \sidechains: the receiving chain must see that the coins on the sending chain were correctly locked. Following Bitcoin's lead, we propose solving this using \hashsigs. Although it is possible to use a simple trust-based solution involving fixed signers (see Appendix \ref{padaptor}) to verify locking of coins, there are important reasons to avoid the introduction of single points of failure:
+
+\begin{itemize}
+\item Trusting individual signers does not only mean expecting them to behave honestly;
+they must also never be compromised, never leak secret key material, never be coerced,
+and never stop participating in the network.
+
+\item Because digital assets are long-lived, any trust requirements must be as well.
+Experience has shown that trust requirements are
+dangerous expectations even for timespans on the order of months, let alone the
+generational timespans we expect financial systems to last.
+
+\item Digital currencies were unable to gain traction until Bitcoin was able to eliminate
+single points of failure, and the community is strongly averse to the introduction of such
+weaknesses. Community mistrust is reinforced by financial events since 2007; public
+trust in the financial system and other public institutions is likewise at historical lows.
+\end{itemize}
+
+\section{Two-way peg\label{def}}
+
+The technical underpinning of \peggedsidechains is called
+the \emph{\twowp}. In this section we explain the workings thereof, beginning
+with some definitions.
+
+\subsection{Definitions}
+
+\begin{itemize}
+\item A \emph{coin}, or \emph{asset}, is a digital property whose controller
+can be cryptographically ascertained.
+
+\item A \emph{block} is a collection of transactions describing changes in
+asset control.
+
+\item A \emph{blockchain} is a well-ordered collection of blocks, on which
+all users must (eventually) come to consensus. This determines the history
+of asset control and provides a computationally unforgeable time ordering
+for transactions.
+
+\item A \emph{reorganisation}, or \emph{reorg}, occurs locally in clients when a previously accepted chain is overtaken by a competitor chain with more proof of work, causing any blocks on the losing side of the fork to be removed from consensus history.
+
+\item A \emph{\sidechain} is a blockchain that validates data from
+other blockchains.
+
+\item \emph{Two-way peg} refers to the mechanism by which coins are transferred
+between \sidechains and back at a fixed or otherwise deterministic exchange rate.
+
+\item A \emph{\peggedsidechain} is a \sidechain whose assets can be imported from
+and returned to other chains; that is, a \sidechain that supports two-way pegged assets.
+
+\item A \emph{simplified payment verification proof} (or \emph{SPV proof}\footnote{Named after the section `Simplified Payment Verification' in \cite{nakamoto2009}}) is
+a \hashsig that an action occurred on a Bitcoin-like proof-of-work blockchain.
+
+Essentially, an SPV proof is composed of (a) a list of blockheaders
+demonstrating proof-of-work, and (b) a cryptographic proof that an
+output was created in one of the blocks in the list.
+This allows verifiers to check that some amount of work has been
+committed to the existence of an output. Such a proof may be invalidated
+by another proof demonstrating the existence of a chain with more work
+which does not include the block which created the output.
+
+Using SPV proofs to determine history, implicitly trusting that the longest
+blockchain is also the longest correct blockchain, is done by so-called
+\emph{SPV clients} in Bitcoin.
+Only a dishonest collusion with greater than 50\% of the hashpower can persistently
+fool an SPV client (unless the client is under a long-term Sybil attack, preventing it from seeing the actual longest chain), since the honest hashpower will not contribute work to an invalid chain.
+
+Optionally, by requiring each blockheader to commit
+to the blockchain's unspent output set\footnote{In Bitcoin, only the set
+of \emph{unspent transaction
+outputs (UTXO's)} is needed to determine the status of all coins. By constructing a
+Merkle tree\cite{merkle1988}, we can commit to every element of the UTXO set using only
+a single hash, minimising the blockheader space used.}, anyone in possession of an SPV
+proof can determine the
+state of the chain without needing to ``replay'' every block. (In Bitcoin, full
+verifiers need to do this when they first start tracking the blockchain.)
+
+As we will discuss in Appendix \ref{compactspv}, by including some additional
+data in Bitcoin's block structure, we can produce smaller
+proofs than a full list of headers, which will improve scalability.
+Still, these proofs will be much larger than ordinary Bitcoin transactions. Fortunately,
+they are not necessary for most transfers: holders of coins on each chain may exchange
+them directly using atomic swaps\cite{nolan2013}, as described in Appendix \ref{atomicswaps}.
+\end{itemize}
+
+\subsection{Symmetric two-way peg\label{symmpeg}}
+
+We can use these ideas to \emph{SPV peg} one \sidechain to another.
+This works as follows: to transfer \maincoins into
+\sidecoins, the \maincoins are sent to a special output on the \mainchain
+that can only be unlocked by an \emph{SPV proof} of possession on the
+\sidechain. To synchronise the two chains, we need to define two waiting periods:
+\begin{enumerate}
+\item The \emph{confirmation period} of a transfer between sidechains is a
+duration for which a coin must be locked on the \mainchain before it can
+be transferred to the \sidechain. The purpose of this confirmation period is
+to allow for sufficient work to be created such that a denial of service attack in the next waiting period becomes more difficult. A typical confirmation period would be on the order of a
+day or two.
+
+After creating the special output on the \mainchain, the user waits out the confirmation period,
+then creates a transaction on the \sidechain referencing this output,
+providing an SPV proof that it was created and buried under sufficient
+work on the the \mainchain.
+
+The confirmation period is a per-sidechain security parameter, which trades
+cross-chain transfer speed for security.
+
+\item The user must then wait for the \emph{contest period}. This is a
+duration in which a newly-transferred coin may not be spent on the \sidechain.
+The purpose of a contest period is to prevent
+double-spending by transferring previously-locked coins during a reorganisation.
+If at any point during this delay, a new proof is
+published containing a chain with more aggregate work which does not include the
+block in which the lock output was created, the
+conversion is retroactively invalidated. We call this a \emph{reorganisation
+proof}.
+
+All users of the \sidechain have an incentive to produce reorganisation proofs
+if possible, as the consequence of a bad proof being admitted is a dilution
+in the value of all coins.
+
+A
+typical contest period would also be on the order of a day or two. To avoid these
+delays, users will likely use atomic swaps (described in Appendix \ref{atomicswaps})
+for most transfers, as long as a liquid market is available.
+\end{enumerate}
+
+
+While locked on the \mainchain, the coin can be freely transferred within
+the \sidechain without further interaction with the \mainchain. However,
+it retains its identity as a \maincoin, and can only be transferred back
+to the same chain that it came from.
+
+When a user wants to transfer coins from the \sidechain back to the
+\mainchain, they do the same thing as the original transfer: send the
+coins on the \sidechain to an SPV-locked output, produce a sufficient
+SPV proof that this was done, and use the proof to unlock a number of
+previously-locked outputs with equal denomination on the \mainchain.
+The entire transfer process is demonstrated in Figure \ref{diagramtable}.
+
+\begin{table}
+\begin{tabular}{rlc}
+\multicolumn{1}{c}{\large Parent Chain} & & \multicolumn{1}{c}{\large Sidechain}\\
+\multicolumn{1}{c}{\vdots} &  & \multicolumn{1}{c}{\vdots}\\
+Send to SPV-locked output && \\
+Wait out confirmation period && \\
+& \rextlinearrow{SPV Proof}{26} &\\
+  && Wait out contest period \\
+  && \multicolumn{1}{c}{\vdots} \\
+  && (Intra-chain transfers) \\
+  && \multicolumn{1}{c}{\vdots} \\
+  && Send to SPV-locked output \\
+  && Wait out confirmation period \\
+& \lextlinearrow{SPV proof}{26} &\\
+Contest period begins && \\
+& \lextlinearrow{SPV reorganisation Proof}{26} &\\
+Contest period ends (failed) && \\
+& \lextlinearrow{New SPV proof}{26} &\\
+Wait out contest period && \\
+\multicolumn{1}{c}{\vdots} && \\
+(Intra-chain transfers) && \\
+\multicolumn{1}{c}{\vdots} &  & \multicolumn{1}{c}{\vdots}
+\end{tabular}
+\caption{Example two-way peg protocol.\label{diagramtable}}
+\end{table}
+
+Since \peggedsidechains may carry assets from many chains, and cannot
+make assumptions about the security of these chains, it is important
+that different assets are not interchangeable (except by an explicit
+trade). Otherwise a malicious user may execute a theft by creating a
+worthless chain with a worthless asset, move such an asset to a
+\sidechain, and exchange it for something else. To combat this, sidechains
+must effectively treat assets from separate \mainchains as separate asset types.
+
+In summary, we propose to make the \mainchain and \sidechains do SPV validation of
+data on each other. Since the \mainchain clients cannot be expected
+to observe every \sidechain, users import proofs of work from the \sidechain
+into the \mainchain in order to prove possession. In a symmetric two-way peg,
+the converse is also true.
+
+To use Bitcoin as the \mainchain, an extension to script which can recognise and validate such SPV proofs
+would be required. At the very least, such proofs would need to be made compact enough to fit in a Bitcoin transaction. 
+However, this is just a soft-forking change\footnote{A soft-forking change is
+a change which only imposes further restrictions on what is valid inside the chain. See Section~\ref{softfork} for more information.},
+without effect on transactions which do not use the new features.
+
+\subsection{Asymmetric two-way peg}
+
+The previous section was titled ``\emph{Symmetric} Two-Way Peg'' because
+the transfer mechanisms from \mainchain to \sidechain and back were the
+same: both had SPV security\footnote{This means using the \hashsig not only for determining the order of transactions, but also their validity.
+In other words, this means trusting miners to not create invalid blocks.}.
+
+An alternate scheme is an \emph{asymmetric} two-way peg: here users of the
+\sidechain are full validators of the \mainchain, and transfers from
+\mainchain to \sidechain do not require SPV proofs, since all validators
+are aware of the state of the \mainchain. On the other hand, the
+\mainchain is still unaware of the \sidechain, so SPV proofs are required
+to transfer back.
+
+This gives a boost in security, since now even a 51\% attacker cannot
+falsely move coins from the \mainchain to the \sidechain. However, it
+comes at the expense of forcing \sidechain validators to track the
+\mainchain, and also implies that reorganisations on the \mainchain
+may cause reorganisations on the \sidechain. We do not explore this possibility in detail here, as issues surrounding reorganisations result in a significant expansion in complexity.
+
+\section{Drawbacks}
+
+While \sidechains provide solutions to many problems in the cryptocurrency
+space, and create countless opportunities for innovation to Bitcoin, they
+are not without their drawbacks. In this section we review a few potential
+problems, along with solutions or workarounds.
+
+\subsection{Complexity}
+
+Sidechains introduce additional complexity on several levels.
+
+On the network level, we have
+multiple independent unsynchronised blockchains supporting
+transfers between each other. They must support transaction scripts
+which can be invalidated by a later reorganisation proof. We
+also need software which can automatically detect misbehaviour and produce
+and publish such proofs.
+
+On the level of assets, we no longer have a simple ``one chain, one asset''
+maxim; individual chains may support arbitrarily many assets, even ones
+that did not exist when the chain was first created. Each of these assets
+is labelled with the chain it was transferred from to ensure
+that their transfers can be unwound correctly.
+
+Enabling the blockchain infrastructure to handle advanced features isn't sufficient: user interfaces for managing wallets will need to be reconsidered.
+Currently in the \altcoin world, each chain has its own wallet which supports
+transactions of that chain's coin. These will need to adapt to support
+multiple chains (with potentially different feature sets) and transfers of assets
+between chains. Of course, there is always the option of not using some functionality when the interface would be too complex.
+
+\subsection{Fraudulent transfers\label{fraud}}
+
+Reorganisations of arbitrary depth are in principle possible, which could allow
+an attacker to completely transfer coins between \sidechains before causing
+a reorganisation longer than the contest period on the sending chain to undo its half of the transfer. The result
+would be an imbalance between the number of coins on the recipient chain and
+the amount of locked output value backing them on the sending chain. If the
+attacker is allowed to return the transferred coins to the original chain,
+he would increase the number of coins in his possession at the expense
+of other users of the sidechain.
+
+Before discussing how to handle this, we observe that this risk can be made
+arbitrarily small by simply increasing the contest period for transfers. Better,
+the duration of the contest period could be made a function of the relative hashpower
+of the two chains: the recipient chain might only unlock coins given an SPV proof
+of one day's worth of \emph{its own} proof-of-work, which might correspond to
+several days of the sending chain's proof-of-work. Security parameters like these
+are properties of the particular sidechain and can be optimised for each sidechain's
+application.
+
+Regardless of how unlikely this event is, it is important that the \sidechain
+not respond with catastrophic failure. It is possible to create an SPV proof
+witnessing such an event, and \sidechains may accept such proofs. They may
+be designed to react in one of many possible ways:
+\begin{itemize}
+\item No reaction. The result is that the \sidechain is a ``fractional reserve''
+of the assets it is storing from other chains. This may be acceptable for tiny
+amounts which are believed to be less than the number of lost \sidecoins,
+or if an insurer promises to make good on missing assets. However,
+beyond some threshold, a ``bank run'' of withdrawals from the \sidechain is likely,
+which would leave somebody holding the bag in the end. Indirect damage could include
+widespread loss of faith in \sidechains, and the expense to the \mainchain to process
+a sudden rush of transactions.
+\item The peg and all dependent transactions could be
+reversed. However, as coins tend to diffuse and histories intermingle, the effect of such a
+reversal could be catastrophic after even short periods of time. It also limits fungibility, as
+recipients would prefer coins with ``clean'' histories (no recent pegs). We expect that such a loss of fungibility might have disastrous consequences.
+
+\item The amount of all coins could be reduced,
+while leaving the exchange rate intact. Now users who transferred coins to the sidechain
+prior to the attack are disadvantaged relative to new ones. Reducing the exchange rate for
+sidechain coins would be equivalent.
+\end{itemize}
+
+Many variations on these reactions are possible: for example, temporarily decreasing the exchange
+rate so those who ``make a run'' on the \sidechain cover the loss of those who don't.
+
+\subsection{Risk of centralisation of mining}
+
+An important concern is whether the introduction of \sidechains with mining
+fees places resource pressure on miners, creating Bitcoin centralisation risks.
+
+Because miners receive compensation
+from the block subsidy and fees of each chain they provide work
+for, it is in their economic
+interest to switch between providing \hashsigs for different similarly-valued
+blockchains following changes in difficulty and movements in market value.
+
+One response is that some blockchains have tweaked their blockheader definition such
+that it includes a part of Bitcoin's \hashsig, thus enabling miners to provide a single
+\hashsig that commits to Bitcoin as well as one or more other blockchains --- this is
+called \emph{merged mining}.
+Since merged mining enables re-use of work for multiple blockchains, miners are
+able to claim compensation from each blockchain that they provide \hashsigs for.
+
+As miners provide work for more blockchains, more resources are needed
+to track and validate them all.
+Miners that provide work for a subset of blockchains are compensated less than
+those which provide work for every possible blockchain.
+Smaller-scale miners may be unable to afford the full costs to mine
+every blockchain, and could thus be put at a disadvantage compared to larger,
+      established miners who are able to claim greater compensation from a larger
+      set of blockchains.
+
+      We note however that it is possible for miners to delegate validation and
+      transaction selection of any subset of the blockchains that they provide work for.
+      Choosing to delegate authority enables miners to avoid almost all of the
+      additional resource requirements, or provide work for blockchains that they
+      are still in the process of validating.
+      However such delegation comes at the cost of centralising validation and
+      transaction selection for the blockchain, even if the work generation itself
+      remains distributed.
+      Miners might also choose instead to not provide work for blockchains that they
+      are still in the process of validating, thus voluntarily giving up some
+      compensation in exchange for increased validation decentralisation.
+
+\subsection{Risk of soft-fork\label{softfork}}
+In Bitcoin, a \emph{soft-fork} is an addition to the Bitcoin protocol made
+backwards compatible by being designed to strictly reduce the set of valid
+transactions or blocks. A soft-fork can be implemented with merely a supermajority
+of the mining computational power participating, rather than all full nodes.
+However, participants' security with respect to the soft-forked features is only SPV-level until they upgrade.
+Soft-forks have been used several times to deploy new features
+and fix security issues in Bitcoin (see \cite{andresen2012-1}).
+
+A two-way peg, implemented as described in this paper, has only SPV security
+and therefore has greater short-term dependence on miner honesty than Bitcoin
+does (see the attack described in Section \ref{fraud}). However, a two-way peg can be
+boosted to security absolutely equal to Bitcoin's if all full nodes on both
+systems inspect each other's chain and demand mutual validity as a
+soft-forking rule.
+
+A negative consequence of this would be loss of isolation of any
+soft-fork-required sidechain. Since isolation was one of the goals of using
+\peggedsidechains, this result would be undesirable unless a sidechain was almost
+universally used. Absent \peggedsidechains, however, the next alternative
+would be to deploy individual changes as hard- or soft-forks in Bitcoin
+directly. This is even more abrupt, and provides no real mechanism for the
+new facility to prove its maturity and demand before risking Bitcoin's
+consensus on it.
+
+\section{Applications\label{app}}
+
+With the technical underpinnings out of the way, in this section we explore user-facing
+applications of \sidechains, which effectively extend Bitcoin to do things
+that it cannot today.
+
+\subsection{Altchain experiments}
+The first application, already mentioned many times, is simply creating \altchains with coins
+that derive their scarcity and supply from Bitcoin. By using a \sidechain which carries
+bitcoins rather than a completely new currency, one can avoid the thorny problems of initial distribution and market vulnerability, as well as barriers to adoption for new users, who no
+longer need to locate a trustworthy marketplace or invest in mining hardware to obtain \altcoin assets.
+
+\subsubsection{Technical experimentation}
+Because \sidechains are technically still fully-independent chains, they
+are able to change features of Bitcoin such as block structure or                              
+transaction chaining. Some examples of such features are:                                      
+\begin{itemize} 
+\item By fixing undesired transaction malleability\footnote{Note that some forms of malleability are desired (\emph{i.e.} the types provided by SIGHASH flags other than SIGHASH\_ALL).} --- which can only be fixed partially in Bitcoin \cite{wuille2014} --- protocols which
+involve chains of unconfirmed transactions can be executed safely. Transaction                 
+malleability is a problem in Bitcoin which allows arbitrary users to tweak
+transaction data in a way that breaks any later transactions which depend on
+them, even though the actual content of the transaction is unchanged. An example               
+of a protocol broken by transaction malleability is \emph{probabilistic                        
+payments}\cite{caldwell2012}.                                                                  
+
+\item Improved payer privacy, \emph{e.g.} the ring signature scheme used by Monero, can reduce the systemic risk of the
+transactions of particular parties being censored, protecting the fungibility of the
+cryptocurrency. Improvements to this have been suggested by Maxwell and Poelstra               
+\cite{maxwell+poelstra2014, poelstra2014-2} and Back\cite{back2013-2}, which would allow for even greater privacy.
+Today, ring signatures can be used with Monero coins, but not bitcoins; \sidechains would
+avoid this exclusivity.
+
+\item Script extensions (for example, to efficiently support coloured                           
+coins\cite{jl20122013}) have been proposed for Bitcoin. Since such
+extensions are usable only by a small subset of users, but all users                           
+would need to deal with the increased complexity and risk of subtle                            
+interactions, these extensions have not been accepted into Bitcoin.                            
+
+Other suggested script extensions include support for new cryptographic                        
+primitives. For example, Lamport signatures\cite{lamport1979}, while                           
+large, are secure against quantum computers.                                                   
+
+\item Many ideas for extending Bitcoin in incompatible ways are described                      
+at \cite{maxwell2014} and at \url{http://www.bitcoin.ninja}.
+\end{itemize}                                                                                  
+
+Since changes like these affect only the transfer of coins,                        
+rather than their creation, there is no need for them to require a separate currency. With \sidechains, users can safely and                            
+temporarily experiment with them. This encourages adoption for the
+\sidechain, and is less risky for participants relative to using an entirely separate \altcoin.                                                          
+                                                                                               
+\subsubsection{Economic experimentation}
+
+Bitcoin's reward structure assigns new coins to miners. 
+This effectively inflates the currency but it winds down over time according to a
+step-wise schedule. Using this inflation to subsidise mining has been a successful
+complement to transaction fees to secure the network.
+
+An alternate mechanism for achieving block rewards on the \sidechain is \href{http://en.wikipedia.org/wiki/Demurrage\_(currency)}{demurrage},
+an idea pioneered for digital currency by Freicoin (\url{http://freico.in}).
+In a demurring cryptocurrency, all unspent outputs lose value over time, with the lost
+value being recollected by miners. This keeps the currency supply stable while
+still rewarding miners. It may be better aligned with user interests than inflation because loss to demurrage is
+enacted uniformly everywhere and instantaneously, unlike inflation; it also
+mitigates the possibility of long-unspent ``lost'' coins being reanimated at their
+current valuation and shocking the economy, which is a perceived risk in Bitcoin.
+Demurrage creates incentives to increase monetary velocity and lower interest
+rates, which are considered (\emph{e.g.} by Freicoin advocates and other supporters of
+Silvio Gesell’s theory of interest\cite{gesell1916}) to be socially
+beneficial. In \peggedsidechains, demurrage allows miners to
+be paid in existing already-valued currency.
+
+Other economic changes include required miner fees, transaction reversibility,
+outputs which are simply deleted once they reach a certain age, or
+inflation/demurrage rates pegged to events outside of the \sidechain. All of these changes
+are difficult to do safely, but the ease of creation and reduced risk of \sidechains
+provide the necessary environment for them to be viable.
+
+\subsection{Issued assets}
+
+To this point, we have mostly been thinking about \sidechains which do not need
+their own native currency: all coins on the \sidechain are initially locked, until
+they are activated by a transfer from some other \sidechain. However, it is
+possible for \sidechains to produce their own tokens, or \emph{issued assets},
+which carry their own semantics. These can be transferred to other \sidechains
+and traded for other assets and currencies, all without trusting a central party, even if
+a trusted party is needed for future redemption.
+
+Issued asset chains have many applications, including traditional financial instruments such
+as shares, bonds, vouchers, and IOUs. This allows external protocols to delegate ownership
+and transfer tracking to the \sidechain on which the ownership shares were issued. Issued
+asset chains may also support more innovative instruments such as smart property.
+
+These technologies can also be used in \emph{complementary currencies}\cite{lietaer2001}.
+Examples of complementary currencies include community currencies, which are
+designed to preferentially boost local businesses; business barter associations, which
+support social programs like education or elderly care; and limited-purpose tokens which
+are used within organisations such as massive multiplayer games, loyalty programs, and
+online communities\footnote{For more information on complementary currencies, see
+\url{http://www.complementarycurrency.org/}}.
+
+ A suitably extended scripting system and an asset-aware transaction format would allow the
+creation of useful transactions from well-audited components, such as the merger
+of a bid and an ask to form an exchange transaction,  enabling the
+creation of completely trustless peer-to-peer marketplaces for asset
+exchange and more complex contracts such as trustless
+options\cite{friedenbach+timon2013}. These contracts could, for example, 
+help reduce the volatility of bitcoin itself.
+
+\section{Future directions}
+
+\subsection{Hashpower attack resistance}
+
+The main thrust of this paper surrounds \twowp using SPV proofs, which are
+forgeable by a 51\%-majority and blockable by however much hashpower is needed
+to build a sufficiently-long proof during the transfer's contest period. (There is a tradeoff
+on this latter point --- if 33\% hashpower can block a proof, then
+67\% is needed to successfully use a false one, and so on.)
+
+Some other ideas worth exploring in \sidechains are:
+\begin{itemize}
+\item \textbf{Assurance contracts.} The sidechain's transaction fees are withheld
+from miners unless their hashpower is at least, say, 66\% of that of Bitcoin.
+These sorts of contracts are easy for a cryptocurrency to implement, if they are
+designed in from the start, and serve to increase the cost of blocking transfers.
+
+\item \textbf{Time-shifted fees.} Miners receive part of their fees in a block
+far in the future (or spread across many blocks) so that they have incentive to
+keep the chain operational.
+
+This may incentivise miners to simply receive fees out-of-band, avoiding the need
+to wait for future in-chain rewards. A variation on this scheme is for miners to receive
+a token enabling them to mine a low-difficulty block far in the future; this has the same
+effect, but directly incentivises its recipient to mine the chain.
+
+\item \textbf{Demurrage.} Block subsidies can be given to miners through
+demurrage to incentivise honest mining. Since only as
+much can be transferred to Bitcoin or another \sidechain as was transferred out,
+this fund reallocation would be localised to the \sidechain in which it occurs.
+
+\item \textbf{Subsidy.} A sidechain could also issue its own separate native currency as reward,
+effectively forming an \altcoin. However, these coins would have a free-floating value and as a
+result would not solve the volatility and market fragmentation issues with \altcoins.
+
+\item \textbf{Co-signed SPV proofs.} Introducing signers who must sign
+off on valid SPV proofs, watching for false proofs. This results in a  direct tradeoff between centralisation and security against a high-hashpower attack. There is a wide spectrum of trade-offs available in this area: signers may be required only for high-value transfers;
+they may be required only when \sidechain hashpower is too small a percentage of Bitcoin's; etc. Further discussion about the usefulness of this kind of trade-off is covered in Appendix \ref{padaptor}.
+
+\item \textbf{SNARKs.} An exciting recent development in academic cryptography has been the invention of
+SNARKs \cite{ben-sasson+chiesa+genkin+tromer+virza2013}. SNARKs are space-efficient,
+quickly verifiable zero-knowledge cryptographic proofs that some computation was done.
+However, their use is currently inhibited because the proofs for most programs are too slow to generate on today's
+computers, and the existing constructions require a \emph{trusted setup}, meaning that the creator of the system
+is able to create false proofs.
+
+A futuristic idea for a low-value or experimental \sidechain is to invoke a trusted authority,
+whose only job is to execute a trusted setup for a SNARK scheme. Then blocks could be constructed
+which prove their changes to the unspent-output set, but do so in zero-knowledge in the
+actual transactions. They could even commit to the full verification of all previous
+blocks, allowing new users to get up to speed by verifying only the single latest block.
+These proofs could also replace the \hashsigs used to move coins from another chain by
+proving that the sending chain is valid according to some rules previously defined.
+\end{itemize}
+
+\section{Acknowledgements}
+
+We would like to thank Gavin Andresen, Corinne Dashjr, Mathias Dybvik, Daniel Folkinshteyn, Ian Grigg, Shaul Kfir,
+midnightmagic, Patrick Strateman, Kat Walsh, and Glenn Willen for reviewer
+comments.
+
+\begin{appendices}
+\section{Federated peg\label{padaptor}}
+
+One of the challenges in deploying pegged sidechains is that Bitcoin script
+is currently not expressive enough to encode the verification rules for an SPV
+proof.
+The required expressiveness could be added in a safe, compatible, and highly
+compartmentalised way (\emph{e.g.}, by converting a no-op instruction into an
+\texttt{OP\_SIDECHAINPROOFVERIFY} in a soft-fork). However, the
+difficulty of building consensus for and deploying even simple new features
+is non-trivial. Recall these difficulties were part of the motivation for
+pegged sidechains to begin with. What we want is a way to try out future script capabilities for Bitcoin without deploying them everywhere.
+
+Fortunately, by adopting some additional security assumptions at the expense of the low trust design objective, it is possible
+to do an initial deployment in a completely permissionless way. The key
+observation is that any enhancement to Bitcoin Script can be implemented
+externally by having a trusted federation of mutually distrusting
+\emph{functionaries}\footnote{
+From Wiktionary (\url{https://en.wiktionary.org/wiki/functionary}),
+a functionary is
+\begin{quote}
+A person \ldots who holds limited authority and primarily serves to carry
+out a simple function for which discretion is not required.
+\end{quote}
+We use this term to emphasise that while functionaries have the physical power
+to disrupt transfers between \sidechains, their correct operation is purely
+mechanical.
+} evaluate the script and accept by signing for an ordinary multisignature script. That is, the functionaries act as a \emph{protocol
+adaptor} by evaluating the same rules we would have wanted Bitcoin to evaluate,
+but cannot for lack of script enhancements. Using this we can achieve a
+\emph{federated peg}.
+
+This approach is very similar to the approach of creating a multi-signature
+off-chain transaction system, but the required server-to-server consensus
+process is provided by simply observing the blockchains in question.
+The result is a deterministic, highly-auditable process which simplifies the
+selection and supervision of functionaries. Because of these similarities, many
+of the techniques used to improve security and confidence in off-chain
+payment systems can be employed for federated pegs. For example:
+functionaries can be geographically diverse, bonded via escrowed coins or
+expensive-to-create coercion-resistant pseudonymous identities, implemented on remote-attesting tamper-resistant hardware, and so on\cite{Todd2013}.
+For small-scale uses, owners of coins in the system can themselves act as the functionaries, thus avoiding third party trust.
+
+Once sidechains with a federated peg are in use, the addition of SPV
+verification to Bitcoin script can be seen as merely a security upgrade to reduce
+the trust required in the system. Existing sidechains could simply migrate
+their coins to the new verification system. This approach also opens
+additional security options: the \hashsig
+provided by mining is not very secure for small systems, while the trust
+of the federation is riskier for large systems. A sidechain could adaptively
+use both of these approaches in parallel, or even switch based on apparent
+hashrate.
+
+Consider the example of a sidechain using a 3 of 5 federation of
+functionaries to implement a two-way peg with Bitcoin. The federation
+has secp256k1 public points (public keys) $P_1$, $P_2$, $P_3$, $P_4$, and $P_5$ and a
+redeemscript template \texttt{3 x x x x x 5 OP\_CHECKMULTISIG}
+known to all participants in the sidechain. To send coins to a ScriptPubKey $SPK$,
+a user who wants the coins to become available on a sidechain using the federated peg computes a cross-chain P2SH\cite{andresen2012-2} address by the following key derivation scheme:
+
+% Check no page break here!
+
+\begin{algorithm}
+\caption{GenerateCrossChainAddress}
+\begin{algorithmic}[1]
+\Require{A target ScriptPubKey $SPK$ which will receive the coins in the other chain}
+\Require{A list $\{P_i\}_{i=1}^n$ of the functionaries' public points}
+\Require{A redeemScript $template$ describing the functionary requirements}
+\Ensure{A P2SH address}
+\Ensure{Nonce used for this instance}
+
+  \State $nonce \gets \texttt{random\_128bit}()$
+  \For{$i \gets [1, n]$}
+    \State $Tweak_i \gets \texttt{HMAC-SHA256}(key=P_i,~data=nonce || SPK)$
+    \If{$Tweak_i >= \texttt{secp256k1\_order}$}
+      \State Go back to start.
+    \EndIf
+    \State $PCC_i = P_i + G \times Tweak_i$
+  \EndFor
+  \State $address \gets \texttt{P2SH\_Multisig}(template, keys=PCC))$
+\end{algorithmic}
+\end{algorithm}
+This derivation scheme is based on the same homomorphic technique \cite{maxwell2011}  used in BIP32 to allow third parties to derive publicly unlinkable addresses. It is the same underlying construction as a pay-to-contract transaction \cite{gerhardt+hanke2012}.
+After generating the address, coins can be paid to it, and the user can later receive the resulting coins on the \sidechain by providing
+the functionaries with the nonce, ScriptPubKey, and an SPV proof to help
+them locate the payment in the blockchain. In order to aid third-party verification of the sidechain, these values could be included in the sidechain itself. Because the transfer is made by paying to a standard P2SH address and can pay to any ScriptPubKey, all Bitcoin services which can pay to a multisignature address will immediately be able to pay into, or receive payments from, a user using a federated sidechain.
+
+The federated peg approach necessarily compromises on trust, but requires no changes
+to Bitcoin --- only the participants need to agree to use it and only the participants
+take the costs or risks of using it. Further, if someone wanted to prevent other
+people from using a sidechain they could not do so: if the federated peg is used
+privately in a closed community, its use can be made undetectable and uncensorable.
+This approach allows rapid deployment and experimentation and will allow the
+community to gain confidence in pegged sidechains before adopting any changes to the Bitcoin protocol.
+
+
+\section{Efficient SPV proofs\label{compactspv}}
+
+In order to transfer coins from a \sidechain back to Bitcoin, we need to
+embed proofs that \sidechain coins were locked in the Bitcoin blockchain.
+These proofs should contain (a) a record that an output was created in the
+\sidechain, and (b) a \hashsig proving sufficient work on top of this output.
+Because Bitcoin's blockchain is shared and validated by all of its participants,
+these proofs must not impose much burden on the network.
+Outputs can be easily recorded compactly,
+but it is not obvious that the \hashsig can be.
+
+\paragraph{Compact SPV Security.} The confidence in an SPV proof can be justified
+by modelling an attacker and the honest network as random processes~\cite{miller+laviola2014}.
+These random processes have a useful statistical property: while each hash
+must be less than its target value to be valid, half the time it will be less than half the target;
+a third of the time it will be less than a third the target; a quarter of the time less than
+a quarter the target; and so on. While the hash value itself does not change the amount of work
+a block is counted as, the presence of lower-than-necessary hashes is in fact statistical evidence
+of more work done in the chain\cite{miller2012}.
+We can exploit this fact to prove equal amounts of work with only a few block
+headers\cite{friedenbach2014}. It should therefore be possible to greatly
+compress a list of headers while still proving the same amount of work. We
+refer to such a compressed list as a \emph{compact SPV proof} or
+\emph{compressed \hashsig}.
+
+However, while the expected work required to produce a fraudulent
+compact SPV proof is the same as that for a non-compact one, a forger's probability
+of success no longer decays exponentially with the amount of work proven:
+a weak opportunistic attacker has a much higher probability of
+succeeding ``by chance’’; \emph{i.e.}, by finding low hashes early. To illustrate
+this, suppose such an attacker has 10\% of the network’s hashrate, and is trying
+to create an SPV proof of 1000 blocks before the network has produced this many.
+Following the formula in \cite{nakamoto2009} we see that his likelihood of success is
+\[ 1 - \sum_{k=0}^{1000} \frac{100^k e^{-100}}{k!} (1 - (0.1)^{1000-k}) \approx 10^{-196} \]
+To contrast, the same attacker in the same time can produce a single block
+proving 1000 blocks' worth of work with probability roughly 10\%, a much
+higher number.
+
+A detailed analysis of this problem and its possible solutions is out of scope
+for this document. For now we will describe an implementation of compact SPV
+proofs, along with some potential solutions to block this sort of attack while
+still obtaining significant proof compaction.
+
+Note that we are assuming a constant difficulty. We observe that Bitcoin's difficulty,
+while non-constant, changes slowly enough to be resistant to known
+attacks\cite{bahack2013}. We therefore expect that corrections which take into
+account the adjusting difficulty can be made.
+\paragraph{Implementation.} The inspiration for compact SPV proofs is the
+\emph{skiplist} \cite{pugh1990}, a probabilistic data structure which provides
+log-complexity search without requiring rebalancing (which is good because an
+append-only structure such as a blockchain cannot be rebalanced).
+
+We require a change to Bitcoin so that rather than each blockheader committing
+only to the header before it,
+it commits to every one of its ancestors. These commitments can be stored
+in a Merkle tree for space efficiency: by including only a root hash in
+each block, we obtain a commitment to every element in the tree. Second,
+when extracting SPV proofs,
+provers are allowed to use these commitments to jump back to a block more
+than one link back in the chain, \emph{provided} the work actually proven
+by the header exceeds the total target work proven by only following direct
+predecessor links. The result is a short \hashsig which proves just as much
+work as the original blockchain.
+
+How much smaller is this? Suppose we are trying to produce an SPV proof of
+an entire blockchain of height $N$. Assume for simplicity that difficulty
+is constant for the chain; \emph{i.e.}, every block target is the same.
+Consider the probability of finding a large enough proof to skip all the
+way back to the genesis within $x$ blocks; that is, between block $N - x$
+and block $N$. This is one minus the probability we \emph{don't}, or
+\[ 1 - \prod_{i=1}^x \frac{N - i}{N - i + 1} = 1 - \frac{N - x}{N}  = \frac{x}{N}\]
+
+The expected number of blocks needed to scan back before skipping the
+remainder of the chain is thus
+\[ \sum_{x = 1}^N \frac{x}N = \frac{N + 1}2 \]
+
+Therefore if we want to skip the entire remaining chain in one jump, we expect
+to search only halfway; by the same argument we expect to skip this half after
+only a quarter, this quarter after only an eighth, and so on. The result is
+that the expected total proof length is logarithmic in the original length of
+the chain.
+
+For a million-block chain, the expected proof size for the entire chain is
+only $\log_2 1000000 \approx 20$ headers. This brings the \hashsig size down into the tens-of-kilobytes
+range.
+
+
+However, as observed above, if an attacker is able to produce compact proofs in
+which only the revealed headers are actually mined, he is able to do so with
+non-negligible probability in the total work being proven. One such strategy
+is for the attacker to produce invalid blocks in which every backlink
+points to the most recent block. Then when extracting a compact proof, the
+attacker simply follows the highest-weighted link every time.
+
+We can adapt our scheme to prevent this in one of several ways:
+
+\begin{itemize}
+\item By limiting the maximum skip size, we return to Bitcoin's property that
+the likelihood of a probabilistic attack decays exponentially with the amount
+of work being proven. The expected proof size is smaller than a full list of
+headers by a constant (proportional to the maximum skip size) factor.
+
+\item By using a maximum skip size which increases with the amount of work
+being proven it is possible to get sublinear proof sizes, at the cost of
+subexponential decay in the probability of attack success. This gives greater
+space savings while still forcing a probabilistic attacker's likelihood of
+success low enough to be considered negligible.
+
+\item Interactive approaches or a cut-and-choose mechanism may allow
+compact proofs with only a small security reduction. For example, provers
+might be required to reveal random committed blockheaders (and their connection to
+the chain), using some part of the proof as a random seed. This reduces the
+probability of attack while only increasing proof size by a constant factor.
+\end{itemize}
+
+If we expect many transfers per \sidechain, we can maintain a special
+output in the \mainchain which tracks the \sidechain's tip. This output is
+moved by separate SPV proofs (which may be compacted in one of the above
+ways), with the result that the \mainchain is aware of a recent \sidechain's
+tip at all times.
+
+Then transfer proofs would be required to always end at this tip, which can
+be verified with only a single output lookup. This
+guarantees verifiers that there are no ``missing links'' in the transfer
+proofs, so they may be logarithmic in size without increased risk of forgery.
+
+This makes the total cost to the \mainchain proportional to the number of
+\sidechains and their length; without this output, the total cost is also
+proportional to the number of inter-chain transfers.
+
+This discussion is not exhaustive; optimising these tradeoffs and formalising the
+security guarantees is out of scope for this paper and the topic of ongoing
+work.
+
+\section{Atomic swaps\label{atomicswaps}}
+
+Once a \sidechain is operational, it is possible for users to exchange coins
+atomically between chains, without using the peg. In fact, this is possible
+with \altcoins today, though the independent prices make it harder to organise.
+This is important, because as we have seen, direct use of the peg requires
+fairly large transactions (with correspondingly large fees) and long wait periods. To contrast,
+atomic swaps can be done using only two transactions on each network, each of
+size similar to ordinary pay-to-address transactions.
+
+One such scheme, due to Tier Nolan\cite{nolan2013}, works as follows.
+
+Suppose we have two parties, $A$ and $B$, who hold coins on different blockchains.
+Suppose also that they each have addresses $\pk_A$ and $\pk_B$ on the other's
+chain, and that $A$ has a secret number $a$. Then $A$ can
+exchange coins for $B$'s as follows:
+\begin{enumerate}
+\item On one chain, $A$ creates a transaction moving coins to an output $O_1$
+which can only be redeemed with (a) a revealing of $a$ and $B$'s signature, or (b)
+both $A$ and $B$'s signatures. $A$ does not yet broadcast this.
+
+$A$ creates a second transaction returning the coins from $O_1$ to $A$, with
+a locktime\footnote{In Bitcoin, a transaction's \emph{locktime} prevents it from
+being included in the blockchain until some timeout has expired. This is useful
+for creating refunds in interactive protocols which can only be redeemed if the
+protocol times out.} of 48 hours. $A$ passes this transaction to $B$ to be
+signed.
+
+Once $B$ signs the locked refund transaction, $A$ may safely broadcast the
+transaction moving coins to $O_1$, and does so.
+
+\item Similarly, $B$ creates a transaction moving coins to an output $O_2$
+on the other chain, which can only be redeemed by (a) a revealing of $a$ and $A$'s
+signature, or (b) both $A$ and $B$'s signatures. $B$ does not yet broadcast this.
+
+$B$ creates a second transaction returning the coins from $O_2$ to $B$, with
+a locktime of 24 hours. $B$ passes this transaction to $A$ to be signed.
+
+Once $A$ signs the locked refund transaction, $B$ may safely broadcast the
+transaction moving his coins to $O_2$, and does so.
+
+\item Since $A$ knows $a$, $A$ is able to spend the coins in $O_2$, and does
+so, taking possession of $B$'s coins.
+
+As soon as $A$ does so, $a$ is revealed and $B$ becomes able to spend the
+coins in $O_1$, and does so, taking possession of $A$'s coins.
+\end{enumerate}
+
+\end{appendices}
+
+\nolinenumbers
+
+\clearpage
+\bibliographystyle{amsalpha}
+\bibliography{asp}
+
+\end{document}
+
